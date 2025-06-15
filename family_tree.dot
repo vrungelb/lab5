@@ -1,0 +1,14 @@
+digraph G {
+  "Ivan";
+  "Ivan" -> "Anna" [label="parent"];
+  "Ivan" -> "Peter" [label="parent"];
+  "Maria";
+  "Maria" -> "Anna" [label="parent"];
+  "Maria" -> "Peter" [label="parent"];
+  "Peter";
+  "Peter" -> "Sergey" [label="parent"];
+  "Anna";
+  "Anna" -> "Olga" [label="parent"];
+  "Sergey";
+  "Olga";
+}

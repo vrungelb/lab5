@@ -3,8 +3,14 @@
 #include <stdlib.h>
 #include "graph.h"
 
+#define RED        "\x1b[1;31m"
+#define GREEN      "\x1b[1;32m"
+#define YELLOW     "\x1b[1;33m"
+#define RESET      "\x1b[0m"
+
+
+
 int main() {
-    setlocale(LC_ALL, "Russian");
     Graph* g = create_graph();
 
     // Добавляем людей
@@ -41,6 +47,11 @@ int main() {
 
 
     print_graph(g);
+
+    export_dot(g, "family_tree.dot");
+    render_png("family_tree.dot", "family_tree.png");
+    printf(GREEN "Graph created. Please check family_tree.png\n" RESET);
+
     free_graph(g);
     return 0;
 }

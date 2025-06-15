@@ -2,20 +2,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <math.h>
 #include "graph.h"
 
 #define INITIAL_CAPACITY 10
 #define HASH_CAPACITY 1024
+#define INF INT_MAX
 
-// ----------- Хэш-таблица --------------
+
+// --- Очередь для BFS ---
+typedef struct QueueNode {
+    int index;
+    struct QueueNode* next;
+} QueueNode;
+
+typedef struct {
+    QueueNode* front;
+    QueueNode* rear;
+} Queue;
+
+
+
+// ----------- Хэш-таблица -------------- //
 
 static unsigned long hash_string(const char* str) {
     unsigned long hash = 5381;
     int c;
     while ((c = *str++))
-        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+        hash = ((hash << 5) + hash) + c;
     return hash;
 }
+
+
 
 static NameHashTable* create_name_table() {
     NameHashTable* ht = malloc(sizeof(NameHashTable));
@@ -24,6 +42,8 @@ static NameHashTable* create_name_table() {
     ht->table = calloc(ht->capacity, sizeof(NameHashNode*));
     return ht;
 }
+
+
 
 static void free_name_table(NameHashTable* ht) {
     if (!ht) return;
@@ -40,13 +60,15 @@ static void free_name_table(NameHashTable* ht) {
     free(ht);
 }
 
+
+
 static int name_table_insert(NameHashTable* ht, const char* name, int index) {
     if (!ht || !name) return -1;
     unsigned long h = hash_string(name) % ht->capacity;
     NameHashNode* cur = ht->table[h];
     while (cur) {
         if (strcmp(cur->name, name) == 0)
-            return -1; // Already exists
+            return -1;
         cur = cur->next;
     }
     NameHashNode* node = malloc(sizeof(NameHashNode));
@@ -57,6 +79,8 @@ static int name_table_insert(NameHashTable* ht, const char* name, int index) {
     ht->table[h] = node;
     return 0;
 }
+
+
 
 static int name_table_find(NameHashTable* ht, const char* name) {
     if (!ht || !name) return -1;
@@ -70,7 +94,7 @@ static int name_table_find(NameHashTable* ht, const char* name) {
     return -1;
 }
 
-// ----------- Граф --------------
+// ----------- Граф -------------- //
 
 Graph* create_graph() {
     Graph* g = malloc(sizeof(Graph));
@@ -107,14 +131,18 @@ void free_graph(Graph* g) {
     free(g);
 }
 
+
+
 int find_person_index(Graph* g, const char* name) {
     if (!g) return -1;
     return name_table_find(g->name_index, name);
 }
 
+
+
 int add_person(Graph* g, Person p) {
     if (!g || !p.name) return -1;
-    if (find_person_index(g, p.name) != -1) return -1; // Already exists
+    if (find_person_index(g, p.name) != -1) return -1;
 
     if (g->size >= g->capacity) {
         int new_capacity = g->capacity * 2;
@@ -140,6 +168,8 @@ int add_person(Graph* g, Person p) {
     return g->size - 1;
 }
 
+
+
 int add_relation(Graph* g, const char* from, const char* to, RelationType relation) {
     if (!g || !from || !to) return -1;
     int from_idx = find_person_index(g, from);
@@ -156,17 +186,90 @@ int add_relation(Graph* g, const char* from, const char* to, RelationType relati
     return 0;
 }
 
-// --- Очередь для BFS ---
 
-typedef struct QueueNode {
-    int index;
-    struct QueueNode* next;
-} QueueNode;
+// --- Алгоритм Флойда-Уоршелла ---
+static int** floyd_warshall(Graph* g) {
+    int n = g->size;
+    int** dist = malloc(n * sizeof(int*));
+    for (int i = 0; i < n; i++) {
+        dist[i] = malloc(n * sizeof(int));
+        for (int j = 0; j < n; j++) {
+            dist[i][j] = (i == j ? 0 : INF);
+        }
+    }
+    // инициализация по рёбрам
+    for (int i = 0; i < n; i++) {
+        Edge* e = g->vertices[i].edges;
+        while (e) {
+            dist[i][e->to] = 1;
+            e = e->next;
+        }
+    }
+    // основной цикл
+    for (int k = 0; k < n; k++) {
+        for (int i = 0; i < n; i++) {
+            if (dist[i][k] == INF) continue;
+            for (int j = 0; j < n; j++) {
+                if (dist[k][j] == INF) continue;
+                if (dist[i][k] + dist[k][j] < dist[i][j]) {
+                    dist[i][j] = dist[i][k] + dist[k][j];
+                }
+            }
+        }
+    }
+    return dist;
+}
 
-typedef struct {
-    QueueNode* front;
-    QueueNode* rear;
-} Queue;
+
+// --- Распределение наследства ---
+void distribute_inheritance(Graph* g, const char* name, double amount) {
+    int start = find_person_index(g, name);
+    if (start == -1) {
+        printf("Person '%s' not found.\n", name);
+        return;
+    }
+    int n = g->size;
+
+    // получаем матрицу кратчайших путей
+    int** dist = floyd_warshall(g);
+
+    // вычисляем веса и суммарный вес
+    double total_weight = 0.0;
+    double* weights = calloc(n, sizeof(double));
+    for (int i = 0; i < n; i++) {
+        if (i == start) continue;
+        int d = dist[start][i];
+        // потомки: путь должен быть конечным и >0, а человек жив
+        if (d < INF && d > 0 && g->vertices[i].person.death_year < 0) {
+            // вес = 1 / 2^(d-1)
+            double w = 1.0 / pow(2.0, d - 1);
+            weights[i] = w;
+            total_weight += w;
+        }
+    }
+
+    if (total_weight == 0.0) {
+        printf("No living descendants to distribute inheritance.\n");
+    } else {
+        double base = amount / total_weight;
+        printf("Inheritance distribution from '%s' (total: %.2f):\n", name, amount);
+        for (int i = 0; i < n; i++) {
+            if (weights[i] > 0) {
+                double share = base * weights[i];
+                printf(" - %s: %.2f\n", g->vertices[i].person.name, share);
+            }
+        }
+    }
+
+    // очистка
+    for (int i = 0; i < n; i++) free(dist[i]);
+    free(dist);
+    free(weights);
+}
+
+
+
+// --- Остальные функции (BFS, Dijkstra и пр.) ---
 
 static void enqueue(Queue* q, int idx) {
     QueueNode* node = malloc(sizeof(QueueNode));
@@ -180,6 +283,8 @@ static void enqueue(Queue* q, int idx) {
     }
 }
 
+
+
 static int dequeue(Queue* q) {
     if (!q->front) return -1;
     QueueNode* node = q->front;
@@ -190,12 +295,14 @@ static int dequeue(Queue* q) {
     return idx;
 }
 
+
+
 static int is_empty(Queue* q) {
     return q->front == NULL;
 }
 
-// --- Получение потомков (BFS по ребрам с relation == PARENT) ---
 
+// --- Получение потомков (BFS по ребрам с relation == PARENT) ---
 void get_descendants(Graph* g, const char* name) {
     int start_idx = find_person_index(g, name);
     if (start_idx == -1) {
@@ -229,7 +336,8 @@ void get_descendants(Graph* g, const char* name) {
     free(visited);
 }
 
-// --- Поиск кратчайшего пути (число рёбер) — алгоритм Дейкстры по неотрицательным ребрам длины 1 ---
+
+
 int shortest_relation_path(Graph* g, const char* from, const char* to) {
     int start = find_person_index(g, from);
     int end = find_person_index(g, to);
@@ -275,16 +383,8 @@ int shortest_relation_path(Graph* g, const char* from, const char* to) {
     return result;
 }
 
-// --- Функция распределения наследства (примитивная, демонстрация) ---
-
-// Здесь нужно реализовать алгоритмы Флойда-Воршалла и вычисление степени родства.
-// Для краткости приведём простую заглушку:
-void distribute_inheritance(Graph* g, const char* name, double amount) {
-    printf("Inheritance distribution function not implemented yet.\n");
-}
 
 
-// --- Вспомогательная функция для отладки ---
 void print_graph(Graph* g) {
     if (!g) return;
     printf("Graph (vertices: %d):\n", g->size);
@@ -300,4 +400,33 @@ void print_graph(Graph* g) {
             e = e->next;
         }
     }
+}
+
+
+// --- Экспорт в DOT ---
+void export_dot(const Graph *g, const char *dot_path) {
+    FILE *f = fopen(dot_path, "w");
+    if (!f) return;
+    fprintf(f, "digraph G {\n");
+    for (int i = 0; i < g->size; i++) {
+        fprintf(f, "  \"%s\";\n", g->vertices[i].person.name);
+        for (Edge *e = g->vertices[i].edges; e; e = e->next) {
+            fprintf(f,
+                "  \"%s\" -> \"%s\" [label=\"%s\"];\n",
+                g->vertices[i].person.name,
+                g->vertices[e->to].person.name,
+                e->relation == PARENT ? "parent" : "child");
+        }
+    }
+    fprintf(f, "}\n");
+    fclose(f);
+}
+
+
+// --- Вызов утилиты dot для рендеринга в PNG ---
+void render_png(const char *dot_path, const char *png_path) {
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd),
+        "dot -Tpng \"%s\" -o \"%s\"", dot_path, png_path);
+    system(cmd);
 }

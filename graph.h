@@ -59,4 +59,8 @@ void distribute_inheritance(Graph* g, const char* name, double amount);
 // Вспомогательные
 void print_graph(Graph* g);
 
+// Экспорт в DOT и рендеринг PNG
+void export_dot(const Graph *g, const char *dot_path);
+void render_png(const char *dot_path, const char *png_path);
+
 #endif // GRAPH_H
