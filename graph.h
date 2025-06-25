@@ -70,7 +70,7 @@ Graph* create_graph();
 void free_graph(Graph* g);
 
 
-// --- ДОБАВЛЕНИЕ ДАННЫХ ---
+// --- ДОБАВЛЕНИЕ ДАННЫХ --- //
 
 /**
  * Добавляет нового человека (вершину) в граф.
@@ -93,7 +93,7 @@ int add_person(Graph* g, Person p);
 int add_relation(Graph* g, const char* from, const char* to, RelationType relation);
 
 
-// --- ПОИСК ---
+// --- ПОИСК --- //
 
 /**
  * Ищет индекс человека по имени.
@@ -104,7 +104,7 @@ int add_relation(Graph* g, const char* from, const char* to, RelationType relati
 int find_person_index(Graph* g, const char* name);
 
 
-// --- ОБРАБОТКА СВЯЗЕЙ ---
+// --- ОБРАБОТКА СВЯЗЕЙ --- //
 
 /**
  * Выводит всех потомков заданного человека, обходя связи типа PARENT (BFS).
@@ -134,7 +134,7 @@ int shortest_relation_path(Graph* g, const char* from, const char* to);
 void distribute_inheritance(Graph* g, const char* name, double amount);
 
 
-// --- УТИЛИТЫ ---
+// --- УТИЛИТЫ --- //
 
 /**
  * Печатает весь граф в текстовом виде.
@@ -144,7 +144,7 @@ void distribute_inheritance(Graph* g, const char* name, double amount);
 void print_graph(Graph* g);
 
 
-// --- ЭКСПОРТ ГРАФА ---
+// --- ЭКСПОРТ ГРАФА --- //
 
 /**
  * Экспортирует граф в файл формата DOT (Graphviz).
@@ -154,14 +154,14 @@ void print_graph(Graph* g);
 void export_dot(const Graph *g, const char *dot_path);
 
 /**
- * Вызывает утилиту dot (Graphviz) для генерации PNG-изображения из .dot-файла.
+ * Вызывает утилиту dot (Graphviz) для генерации svg-изображения из .dot-файла.
  * @param dot_path Путь к входному .dot-файлу.
- * @param png_path Путь к выходному PNG-файлу.
+ * @param svg_path Путь к выходному svg-файлу.
  */
-void render_png(const char *dot_path, const char *png_path);
+void render_svg(const char *dot_path, const char *svg_path);
 
 
-// --- УДАЛЕНИЕ ---
+// --- УДАЛЕНИЕ --- //
 
 /**
  * Удаляет связь между двумя людьми.
@@ -183,4 +183,4 @@ int remove_relation(Graph* g, const char* from, const char* to, RelationType rel
  */
 int remove_person(Graph* g, const char* name);
 
-#endif // GRAPH_H
+#endif

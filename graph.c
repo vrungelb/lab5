@@ -13,8 +13,9 @@
 #define CYAN       "\x1b[1;36m"
 #define RESET      "\x1b[0m"
 
-// --- Очередь для BFS ---
-// Узел очереди — элемент связного списка
+
+// --- Очередь для BFS --- //
+// Каждый узел очереди — элемент связного списка
 typedef struct QueueNode {
     int index;                // Индекс вершины в графе
     struct QueueNode* next;  // Указатель на следующий элемент в очереди
@@ -65,8 +66,8 @@ static int name_table_insert(NameHashTable* ht, const char* name, int index) {
     NameHashNode* cur = ht->table[h];
     while (cur) {
         if (strcmp(cur->name, name) == 0)
-            return -1;
-        cur = cur->next;
+            return -1; // дубликат, выходим
+        cur = cur->next; // идём по цепочке коллизий
     }
     NameHashNode* node = malloc(sizeof(NameHashNode));
     if (!node) return -1;
@@ -88,6 +89,7 @@ static int name_table_find(NameHashTable* ht, const char* name) {
     }
     return -1;
 }
+
 
 // ----------- Граф -------------- //
 Graph* create_graph() {
@@ -275,7 +277,7 @@ void distribute_inheritance(Graph* g, const char* name, double amount) {
     }
 
     if (total_weight == 0.0) {
-        printf("Нет живых потомков, которые могли бы распределить наследство\n");
+        printf(RED "Нет живых потомков, которые могли бы распределить наследство\n" RESET);
     } else {
         double base = amount / total_weight;
         printf("Распределение наследства с '%s' (total: %.2f):\n", name, amount);
@@ -440,7 +442,7 @@ void print_graph(Graph* g) {
 
 
 
-// --- Экспорт в DOT ---
+// --- Экспорт в DOT --- //
 void export_dot(const Graph *g, const char *dot_path) {
     FILE *f = fopen(dot_path, "w");
     if (!f) return;
@@ -450,10 +452,9 @@ void export_dot(const Graph *g, const char *dot_path) {
         for (Edge *e = g->vertices[i].edges; e; e = e->next) {
             // Экспортируем с меткой отношения
             fprintf(f,
-                    "  \"%s\" -> \"%s\" [label=\"%s\"];\n",
+                    "  \"%s\" -> \"%s\";\n",
                     g->vertices[i].person.name,
-                    g->vertices[e->to].person.name,
-                    e->relation == PARENT ? "parent" : "child");
+                    g->vertices[e->to].person.name);
         }
     }
     fprintf(f, "}\n");
@@ -461,11 +462,10 @@ void export_dot(const Graph *g, const char *dot_path) {
 }
 
 
-
-// --- Вызов утилиты dot для рендеринга в PNG ---
-void render_png(const char *dot_path, const char *png_path) {
+// --- Вызов утилиты dot для рендеринга в .svg ---
+void render_svg(const char *dot_path, const char *svg_path) {
     char cmd[1024];
     snprintf(cmd, sizeof(cmd),
-        "dot -Tpng \"%s\" -o \"%s\"", dot_path, png_path);
+        "dot -Tsvg \"%s\" -o \"%s\"", dot_path, svg_path);
     system(cmd);
 }

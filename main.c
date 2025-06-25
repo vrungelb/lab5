@@ -21,9 +21,56 @@ static void print_menu() {
     printf("6) Печатать граф (графически)\n");
     printf("7) Найти дистанцию отношений между двумя людьми\n");
     printf("8) Распределить наследство\n");
+    printf("9) Загрузить данные из файла\n");
+    printf("10) Показать всех потомков заданного человека\n");
     printf("0) Выход\n");
     printf("Выберите опцию: ");
 }
+
+
+void load_from_file(const char *filename, Graph *g) {
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        fprintf(stderr, RED "Не удалось открыть файл %s\n" RESET, filename);
+        return;
+    }
+    char line[256];
+    enum { SECTION_PERSONS, SECTION_RELATIONS } section = SECTION_PERSONS;
+    while (fgets(line, sizeof(line), f)) {
+        // убираем '\n'
+        line[strcspn(line, "\n")] = 0;
+        if (line[0] == '\0') {
+            // пустая строка — переходим к секции связей
+            section = SECTION_RELATIONS;
+            continue;
+        }
+        if (section == SECTION_PERSONS) {
+            // ожидаем: name;gender;birth;death
+            char *name = strtok(line, ";");
+            char *gndr = strtok(NULL, ";");
+            char *birth = strtok(NULL, ";");
+            char *death = strtok(NULL, ";");
+            if (name && gndr && birth && death) {
+                Person p;
+                p.name = name;
+                p.gender = (toupper(gndr[0]) == 'M' ? MALE : FEMALE);
+                p.birth_year = atoi(birth);
+                p.death_year = atoi(death);
+                add_person(g, p);
+            }
+        } else {
+            // секция связей: parent;child
+            char *parent = strtok(line, ";");
+            char *child  = strtok(NULL, ";");
+            if (parent && child) {
+                add_relation(g, parent, child, PARENT);
+            }
+        }
+    }
+    fclose(f);
+    printf(GREEN "Данные загружены из %s\n" RESET, filename);
+}
+
 
 // Проверка и фильтрация валидных UTF-8 последовательностей
 static void filter_valid_utf8(char* buf) {
@@ -193,12 +240,12 @@ int main() {
                 printf("Введите имя файла (без расширения) для вывода графа: ");
                 read_line(basename, sizeof(basename));
                 if (basename[0] == '\0') strcpy(basename, "family_tree");
-                char dot_path[128], png_path[128];
+                char dot_path[128], svg_path[128];
                 snprintf(dot_path, sizeof(dot_path), "%s.dot", basename);
-                snprintf(png_path, sizeof(png_path), "%s.png", basename);
+                snprintf(svg_path, sizeof(svg_path), "%s.svg", basename);
                 export_dot(g, dot_path);
-                render_png(dot_path, png_path);
-                printf(GREEN "Граф сохранён в файлы: %s и %s" RESET, dot_path, png_path);
+                render_svg(dot_path, svg_path);
+                printf(GREEN "Граф сохранён в файлы: %s и %s" RESET, dot_path, svg_path);
                 break;
             }
 
@@ -225,6 +272,18 @@ int main() {
                     double amount = atof(buf);
                     distribute_inheritance(g, name1, amount);
                 }
+                break;
+
+            case 9:
+                printf("Имя файла: ");
+                read_line(buf, sizeof(buf));       // или fgets+clean_input
+                load_from_file(buf, g);
+                break;
+
+            case 10:
+                printf("Введите имя человека для поиска потомков: ");
+                read_line(name1, sizeof(name1));
+                get_descendants(g, name1);
                 break;
 
             case 0:
